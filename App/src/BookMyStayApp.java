@@ -12,6 +12,9 @@ public class BookMyStayApp {
 
         // Execute Use Case 3: Centralized Room Inventory Management
         UseCase3.execute();
+
+        //Execute Use Case 4: Room Search & Availability Check
+        UseCase4.execute();
     }
 }
 
@@ -322,5 +325,80 @@ class UseCase3 {
         System.out.println("Suite Room:");
         suiteRoom.displayRoomDetails();
         System.out.println("Available Rooms: " + availability.get("Suite Room"));
+    }
+}
+
+/**
+ * ============================================================================
+ * CLASS - RoomSeacrhService
+ * ============================================================================
+ *
+ * Use Case 4: Room Search & Availability Check
+ *
+ * Description:
+ * This class provides search functionality
+ * for guests to view available rooms.
+ *
+ * It reads room availability from inventory
+ * and room details from Room objects.
+ *
+ * No inventory mutation or booking logic
+ * is performed in this class.
+ *
+ * @version 4.0
+ */
+class RoomSearchService{
+    public void searchAvailableRooms(
+            RoomInventory inventory,
+            Room singleRoom,
+            Room doubleRoom,
+            Room suiteRoom){
+        Map<String, Integer> availability =  inventory.getRoomAvailability();
+        if (availability.get("Single Room")!=null && availability.get("Single Room")>0){
+            System.out.println("Single Room:");
+            singleRoom.displayRoomDetails();
+            System.out.println("Available:" + availability.get("Single Room") + "\n");
+        }
+        if (availability.get("Double Room")!=null && availability.get("Double Room")>0){
+            System.out.println("Double Room:");
+            doubleRoom.displayRoomDetails();
+            System.out.println("Available:" + availability.get("Double Room") + "\n");
+        }
+        if (availability.get("Suite Room")!=null && availability.get("Suite Room")>0){
+            System.out.println("Suite Room:");
+            suiteRoom.displayRoomDetails();
+            System.out.println("Available:" + availability.get("Suite Room") + "\n");
+        }
+
+    }
+}
+/**
+ * ============================================================================
+ * MAIN CLASS - UseCase4RoomSearch
+ * ============================================================================
+ *
+ * Use Case 4: Room Search & Availability Search
+ *
+ * Description:
+ * This class demonstrates how guests
+ * can view available rooms without
+ * modifying inventory data.
+ *
+ * The system enforces read-only access
+ * by design and usage discipline.
+ *
+ * @version 4.0
+ */
+
+class UseCase4{
+    public static void execute(){
+        System.out.println("\nRoom Search\n");
+        RoomInventory inventory = new RoomInventory();
+        SingleRoom singleRoom = new SingleRoom();
+        DoubleRoom doubleRoom = new DoubleRoom();
+        SuiteRoom suiteRoom = new SuiteRoom();
+
+        RoomSearchService searchService = new RoomSearchService();
+        searchService.searchAvailableRooms(inventory, singleRoom, doubleRoom, suiteRoom);
     }
 }
