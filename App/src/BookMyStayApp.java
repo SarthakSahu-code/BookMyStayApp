@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 
 public class BookMyStayApp {
 
@@ -33,6 +34,9 @@ public class BookMyStayApp {
 
         // Execute Use Case 8: Booking History & Reporting
         UseCase8BookingHistoryReport.execute();
+
+        // Execute Use Case 9: Error Handling & Validation
+        UseCase9ErrorHandlingValidation.execute();
     }
 }
 
@@ -961,5 +965,136 @@ class UseCase8BookingHistoryReport {
 
         // Generating the report
         reportService.generateReport(history);
+    }
+}
+
+/**
+ * ============================================================================
+ * CLASS - InvalidBookingException
+ * ============================================================================
+ *
+ * Use Case 9: Error Handling & Validation
+ *
+ * Description:
+ * This custom exception represents
+ * invalid booking scenarios in the system.
+ *
+ * Using a domain-specific exception
+ * makes error handling clearer and safer.
+ *
+ * @version 9.0
+ */
+class InvalidBookingException extends Exception {
+
+    /**
+     * Creates an exception with
+     * a descriptive error message.
+     *
+     * @param message error description
+     */
+    public InvalidBookingException(String message) {
+        super(message);
+    }
+}
+
+/**
+ * ============================================================================
+ * CLASS - ReservationValidator
+ * ============================================================================
+ *
+ * Use Case 9: Error Handling & Validation
+ *
+ * Description:
+ * This class is responsible for validating
+ * booking requests before they are processed.
+ *
+ * All validation rules are centralized
+ * to avoid duplication and inconsistency.
+ *
+ * @version 9.0
+ */
+class ReservationValidator {
+
+    /**
+     * Validates booking input provided by the user.
+     *
+     * @param guestName name of the guest
+     * @param roomType requested room type
+     * @param inventory centralized inventory
+     * @throws InvalidBookingException if validation fails
+     */
+    public void validate(
+            String guestName,
+            String roomType,
+            RoomInventory inventory
+    ) throws InvalidBookingException {
+
+        if (guestName == null || guestName.trim().isEmpty()) {
+            throw new InvalidBookingException("Guest name cannot be empty.");
+        }
+
+        // Strict validation for room type exact match
+        // to handle inputs like "single" vs "Single"
+        if (!roomType.equals("Single") && !roomType.equals("Double") && !roomType.equals("Suite")) {
+            throw new InvalidBookingException("Invalid room type selected.");
+        }
+    }
+}
+
+/**
+ * ============================================================================
+ * MAIN CLASS - UseCase9ErrorHandlingValidation
+ * ============================================================================
+ *
+ * Use Case 9: Error Handling & Validation
+ *
+ * Description:
+ * This class demonstrates how user input
+ * is validated before booking is processed.
+ *
+ * The system:
+ * - Accepts user input
+ * - Validates input centrally
+ * - Handles errors gracefully
+ *
+ * @version 9.0
+ */
+class UseCase9ErrorHandlingValidation {
+
+    /**
+     * Application entry point for Use Case 9 execution.
+     */
+    public static void execute() {
+        // Display application header
+        System.out.println("\nBooking Validation");
+
+        Scanner scanner = new Scanner(System.in);
+
+        // Initialize required components
+        RoomInventory inventory = new RoomInventory();
+        ReservationValidator validator = new ReservationValidator();
+        BookingRequestQueue bookingQueue = new BookingRequestQueue();
+
+        try {
+            System.out.print("Enter guest name: ");
+            String guestName = scanner.nextLine();
+
+            System.out.print("Enter room type (Single/Double/Suite): ");
+            String roomType = scanner.nextLine();
+
+            // Perform validation
+            validator.validate(guestName, roomType, inventory);
+
+            // If validation passes, process the booking
+            bookingQueue.addRequest(new Reservation(guestName, roomType));
+            System.out.println("Booking successfully validated and added to queue.");
+
+        } catch (InvalidBookingException e) {
+            // Handle domain-specific validation errors
+            System.out.println("Booking failed: " + e.getMessage());
+
+        } finally {
+            scanner.close();
+        }
     }
 }
