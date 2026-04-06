@@ -8,6 +8,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 import java.util.Stack;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 
 public class BookMyStayApp {
 
@@ -45,6 +49,9 @@ public class BookMyStayApp {
 
         // Execute Use Case 11: Concurrent Booking Simulation
         UseCase11ConcurrentBookingSimulation.execute();
+
+        // Execute Use Case 12: Data Persistence & System Recovery
+        UseCase12DataPersistenceRecovery.execute();
     }
 }
 
@@ -1287,11 +1294,6 @@ class ConcurrentBookingProcessor implements Runnable {
         while (true) {
             Reservation reservation;
 
-            /*
-             * Synchronize on the booking queue to ensure
-             * that only one thread can retrieve a request
-             * at a time.
-             */
             synchronized (bookingQueue) {
                 if (!bookingQueue.hasPendingRequests()) {
                     break;
@@ -1299,10 +1301,6 @@ class ConcurrentBookingProcessor implements Runnable {
                 reservation = bookingQueue.getNextRequest();
             }
 
-            /*
-             * Allocation also mutates shared inventory.
-             * Synchronization ensures atomic allocation.
-             */
             synchronized (inventory) {
                 allocationService.allocateRoom(reservation, inventory);
             }
@@ -1339,13 +1337,11 @@ class UseCase11ConcurrentBookingSimulation {
         BookingRequestQueue bookingQueue = new BookingRequestQueue();
         RoomAllocationService allocationService = new RoomAllocationService();
 
-        // Add multiple requests to the queue
         bookingQueue.addRequest(new Reservation("Abhi", "Single"));
         bookingQueue.addRequest(new Reservation("Vanmathi", "Double"));
         bookingQueue.addRequest(new Reservation("Kural", "Suite"));
         bookingQueue.addRequest(new Reservation("Subha", "Single"));
 
-        // Create booking processor tasks
         Thread t1 = new Thread(
                 new ConcurrentBookingProcessor(
                         bookingQueue, inventory, allocationService
@@ -1358,7 +1354,6 @@ class UseCase11ConcurrentBookingSimulation {
                 )
         );
 
-        // Start concurrent processing
         t1.start();
         t2.start();
 
@@ -1369,10 +1364,121 @@ class UseCase11ConcurrentBookingSimulation {
             System.out.println("Thread execution interrupted.");
         }
 
-        // Print final remaining inventory
         System.out.println("\nRemaining Inventory:");
         System.out.println("Single: " + inventory.getRoomAvailability().get("Single Room"));
         System.out.println("Double: " + inventory.getRoomAvailability().get("Double Room"));
         System.out.println("Suite: " + inventory.getRoomAvailability().get("Suite Room"));
+    }
+}
+
+/**
+ * ============================================================================
+ * CLASS - FilePersistenceService
+ * ============================================================================
+ *
+ * Use Case 12: Data Persistence & System Recovery
+ *
+ * Description:
+ * This class is responsible for persisting
+ * critical system state to a plain text file.
+ *
+ * It supports:
+ * - Saving room inventory state
+ * - Restoring inventory on system startup
+ *
+ * No database or serialization framework
+ * is used in this use case.
+ *
+ * @version 12.0
+ */
+class FilePersistenceService {
+
+    /**
+     * Saves room inventory state to a file.
+     *
+     * Each line follows the format:
+     * roomType=availableCount
+     *
+     * @param inventory centralized room inventory
+     * @param filePath path to persistence file
+     */
+    public void saveInventory(RoomInventory inventory, String filePath) {
+        try (PrintWriter writer = new PrintWriter(new FileWriter(filePath))) {
+            Map<String, Integer> map = inventory.getRoomAvailability();
+            for (Map.Entry<String, Integer> entry : map.entrySet()) {
+                writer.println(entry.getKey() + "=" + entry.getValue());
+            }
+            System.out.println("Inventory saved successfully.");
+        } catch (IOException e) {
+            System.out.println("Error saving inventory: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Loads room inventory state from a file.
+     *
+     * @param inventory centralized room inventory
+     * @param filePath path to persistence file
+     */
+    public void loadInventory(RoomInventory inventory, String filePath) {
+        File file = new File(filePath);
+        if (!file.exists()) {
+            System.out.println("No valid inventory data found. Starting fresh.");
+            return;
+        }
+        try (Scanner fileScanner = new Scanner(file)) {
+            while (fileScanner.hasNextLine()) {
+                String line = fileScanner.nextLine();
+                String[] parts = line.split("=");
+                if (parts.length == 2) {
+                    String roomType = parts[0];
+                    int count = Integer.parseInt(parts[1]);
+                    inventory.updateAvailability(roomType, count);
+                }
+            }
+        } catch (IOException | NumberFormatException e) {
+            System.out.println("Error loading inventory: " + e.getMessage());
+        }
+    }
+}
+
+/**
+ * ============================================================================
+ * MAIN CLASS - UseCase12DataPersistenceRecovery
+ * ============================================================================
+ *
+ * Use Case 12: Data Persistence & System Recovery
+ *
+ * Description:
+ * This class demonstrates how system state
+ * can be restored after an application restart.
+ *
+ * Inventory data is loaded from a file
+ * before any booking operations occur.
+ *
+ * @version 12.0
+ */
+class UseCase12DataPersistenceRecovery {
+
+    /**
+     * Application entry point for Use Case 12 execution.
+     */
+    public static void execute() {
+        System.out.println("\nSystem Recovery");
+
+        String filePath = "inventory_state.txt";
+        RoomInventory inventory = new RoomInventory();
+        FilePersistenceService persistenceService = new FilePersistenceService();
+
+        // Attempt to load existing inventory
+        persistenceService.loadInventory(inventory, filePath);
+
+        System.out.println("\nCurrent Inventory:");
+        System.out.println("Single: " + inventory.getRoomAvailability().get("Single Room"));
+        System.out.println("Double: " + inventory.getRoomAvailability().get("Double Room"));
+        System.out.println("Suite: " + inventory.getRoomAvailability().get("Suite Room"));
+
+        // Save the inventory state back to the file
+        persistenceService.saveInventory(inventory, filePath);
     }
 }
