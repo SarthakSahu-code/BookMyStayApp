@@ -30,6 +30,9 @@ public class BookMyStayApp {
 
         // Execute Use Case 7: Add-On Service Selection
         UseCase7AddOnServiceSelection.execute();
+
+        // Execute Use Case 8: Booking History & Reporting
+        UseCase8BookingHistoryReport.execute();
     }
 }
 
@@ -827,7 +830,7 @@ class UseCase7AddOnServiceSelection {
 
         AddOnServiceManager serviceManager = new AddOnServiceManager();
 
-        // Creating some sample add-on services to reach the expected 1500.0 output
+        // Creating some sample add-on services
         AddOnService spa = new AddOnService("Spa", 1000.0);
         AddOnService airportPickup = new AddOnService("Airport Pickup", 500.0);
 
@@ -838,5 +841,125 @@ class UseCase7AddOnServiceSelection {
         // Display results
         System.out.println("Reservation ID: Single-1");
         System.out.println("Total Add-On Cost: " + serviceManager.calculateTotalServiceCost("Single-1"));
+    }
+}
+
+/**
+ * ============================================================================
+ * CLASS - BookingHistory
+ * ============================================================================
+ *
+ * Use Case 8: Booking History & Reporting
+ *
+ * Description:
+ * This class maintains a record of
+ * confirmed reservations.
+ *
+ * It provides ordered storage for
+ * historical and reporting purposes.
+ *
+ * @version 8.0
+ */
+class BookingHistory {
+
+    /**
+     * List that stores confirmed reservations.
+     */
+    private List<Reservation> confirmedReservations;
+
+    /**
+     * Initializes an empty booking history.
+     */
+    public BookingHistory() {
+        confirmedReservations = new ArrayList<>();
+    }
+
+    /**
+     * Adds a confirmed reservation
+     * to booking history.
+     *
+     * @param reservation confirmed booking
+     */
+    public void addReservation(Reservation reservation) {
+        confirmedReservations.add(reservation);
+    }
+
+    /**
+     * Returns all confirmed reservations.
+     *
+     * @return list of reservations
+     */
+    public List<Reservation> getConfirmedReservations() {
+        return confirmedReservations;
+    }
+}
+
+/**
+ * ============================================================================
+ * CLASS - BookingReportService
+ * ============================================================================
+ *
+ * Use Case 8: Booking History & Reporting
+ *
+ * Description:
+ * This class generates reports
+ * from booking history data.
+ *
+ * Reporting logic is separated
+ * from data storage.
+ *
+ * @version 8.0
+ */
+class BookingReportService {
+
+    /**
+     * Displays a summary report
+     * of all confirmed bookings.
+     *
+     * @param history booking history
+     */
+    public void generateReport(BookingHistory history) {
+        System.out.println("Booking History Report");
+        for (Reservation reservation : history.getConfirmedReservations()) {
+            System.out.println("Guest: " + reservation.getGuestName() + ", Room Type: " + reservation.getRoomType());
+        }
+    }
+}
+
+/**
+ * ============================================================================
+ * MAIN CLASS - UseCase8BookingHistoryReport
+ * ============================================================================
+ *
+ * Use Case 8: Booking History & Reporting
+ *
+ * Description:
+ * This class demonstrates how
+ * confirmed bookings are stored
+ * and reported.
+ *
+ * The system maintains an ordered
+ * audit trail of reservations.
+ *
+ * @version 8.0
+ */
+class UseCase8BookingHistoryReport {
+
+    /**
+     * Application entry point for Use Case 8 execution.
+     */
+    public static void execute() {
+        System.out.println("\nBooking History and Reporting\n");
+
+        BookingHistory history = new BookingHistory();
+        BookingReportService reportService = new BookingReportService();
+
+        // Adding reservations to history
+        history.addReservation(new Reservation("Abhi", "Single"));
+        history.addReservation(new Reservation("Subha", "Double"));
+        history.addReservation(new Reservation("Vanmathi", "Suite"));
+
+        // Generating the report
+        reportService.generateReport(history);
     }
 }
