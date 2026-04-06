@@ -2,15 +2,29 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.HashSet;
+import java.util.Set;
 
 public class BookMyStayApp {
 
     public static void main(String[] args) {
+        // Execute Use Case 1: Welcome and Initialization
         UseCase1.execute();
+
+        // Execute Use Case 2: Room Initialization & Static Availability
         UseCase2.execute();
+
+        // Execute Use Case 3: Centralized Room Inventory Management
         UseCase3.execute();
+
+        // Execute Use Case 4: Room Search & Availability Check
         UseCase4.execute();
+
+        // Execute Use Case 5: Booking Request (FIFO)
         UseCase5.execute();
+
+        // Execute Use Case 6: Reservation Confirmation & Room Allocation
+        UseCase6RoomAllocation.execute();
     }
 }
 
@@ -538,6 +552,137 @@ class UseCase5 {
         while (bookingQueue.hasPendingRequests()) {
             Reservation request = bookingQueue.getNextRequest();
             System.out.println("Processing Request - Guest: " + request.getGuestName() + ", Room Type: " + request.getRoomType());
+        }
+    }
+}
+
+/**
+ * ============================================================================
+ * CLASS - RoomAllocationService
+ * ============================================================================
+ *
+ * Use Case 6: Reservation Confirmation & Room Allocation
+ *
+ * Description:
+ * This class is responsible for confirming
+ * booking requests and assigning rooms.
+ *
+ * It ensures:
+ * - Each room ID is unique
+ * - Inventory is updated immediately
+ * - No room is double-booked
+ *
+ * @version 6.0
+ */
+class RoomAllocationService {
+
+    /**
+     * Stores all allocated room IDs to
+     * prevent duplicate assignments.
+     */
+    private Set<String> allocatedRoomIds;
+
+    /**
+     * Stores assigned room IDs by room type.
+     *
+     * Key   -> Room type
+     * Value -> Set of assigned room IDs
+     */
+    private Map<String, Set<String>> assignedRoomsByType;
+
+    /**
+     * Initializes allocation tracking structures.
+     */
+    public RoomAllocationService() {
+        allocatedRoomIds = new HashSet<>();
+        assignedRoomsByType = new HashMap<>();
+    }
+
+    /**
+     * Confirms a booking request by assigning
+     * a unique room ID and updating inventory.
+     *
+     * @param reservation booking request
+     * @param inventory centralized room inventory
+     */
+    public void allocateRoom(Reservation reservation, RoomInventory inventory) {
+        String requestedType = reservation.getRoomType();
+        String inventoryKey = requestedType + " Room";
+
+        Map<String, Integer> currentAvailability = inventory.getRoomAvailability();
+
+        if (currentAvailability.containsKey(inventoryKey) && currentAvailability.get(inventoryKey) > 0) {
+            // Generate unique ID
+            String roomId = generateRoomId(requestedType);
+
+            // Add to tracking sets
+            allocatedRoomIds.add(roomId);
+            assignedRoomsByType.computeIfAbsent(requestedType, k -> new HashSet<>()).add(roomId);
+
+            // Update inventory immediately
+            inventory.updateAvailability(inventoryKey, currentAvailability.get(inventoryKey) - 1);
+
+            // Confirm booking
+            System.out.println("Booking confirmed for Guest: " + reservation.getGuestName() + ", Room ID: " + roomId);
+        } else {
+            System.out.println("Booking failed for Guest: " + reservation.getGuestName() + " - No " + requestedType + " rooms available.");
+        }
+    }
+
+    /**
+     * Generates a unique room ID
+     * for the given room type.
+     *
+     * @param roomType type of room
+     * @return unique room ID
+     */
+    private String generateRoomId(String roomType) {
+        int count = 1;
+        if (assignedRoomsByType.containsKey(roomType)) {
+            count = assignedRoomsByType.get(roomType).size() + 1;
+        }
+        return roomType + "-" + count;
+    }
+}
+
+/**
+ * ============================================================================
+ * MAIN CLASS - UseCase6RoomAllocation
+ * ============================================================================
+ *
+ * Use Case 6: Reservation Confirmation & Room Allocation
+ *
+ * Description:
+ * This class demonstrates how booking
+ * requests are confirmed and rooms
+ * are allocated safely.
+ *
+ * It consumes booking requests in FIFO
+ * order and updates inventory immediately.
+ *
+ * @version 6.0
+ */
+class UseCase6RoomAllocation {
+
+    /**
+     * Application entry point for Use Case 6 execution.
+     */
+    public static void execute() {
+        System.out.println("\nRoom Allocation Processing");
+
+        RoomInventory inventory = new RoomInventory();
+        BookingRequestQueue queue = new BookingRequestQueue();
+        RoomAllocationService allocationService = new RoomAllocationService();
+
+        // Create booking requests (Subha updated to "Single" to match Use Case 6 expected output)
+        queue.addRequest(new Reservation("Abhi", "Single"));
+        queue.addRequest(new Reservation("Subha", "Single"));
+        queue.addRequest(new Reservation("Vanmathi", "Suite"));
+
+        // Process requests
+        while (queue.hasPendingRequests()) {
+            Reservation request = queue.getNextRequest();
+            allocationService.allocateRoom(request, inventory);
         }
     }
 }
