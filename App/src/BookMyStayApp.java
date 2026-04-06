@@ -7,6 +7,7 @@ import java.util.Set;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
+import java.util.Stack;
 
 public class BookMyStayApp {
 
@@ -36,7 +37,11 @@ public class BookMyStayApp {
         UseCase8BookingHistoryReport.execute();
 
         // Execute Use Case 9: Error Handling & Validation
+        // Note: This will pause execution to wait for user input in the console.
         UseCase9ErrorHandlingValidation.execute();
+
+        // Execute Use Case 10: Booking Cancellation & Inventory Rollback
+        UseCase10BookingCancellation.execute();
     }
 }
 
@@ -1033,8 +1038,6 @@ class ReservationValidator {
             throw new InvalidBookingException("Guest name cannot be empty.");
         }
 
-        // Strict validation for room type exact match
-        // to handle inputs like "single" vs "Single"
         if (!roomType.equals("Single") && !roomType.equals("Double") && !roomType.equals("Suite")) {
             throw new InvalidBookingException("Invalid room type selected.");
         }
@@ -1065,12 +1068,10 @@ class UseCase9ErrorHandlingValidation {
      * Application entry point for Use Case 9 execution.
      */
     public static void execute() {
-        // Display application header
         System.out.println("\nBooking Validation");
 
         Scanner scanner = new Scanner(System.in);
 
-        // Initialize required components
         RoomInventory inventory = new RoomInventory();
         ReservationValidator validator = new ReservationValidator();
         BookingRequestQueue bookingQueue = new BookingRequestQueue();
@@ -1082,19 +1083,151 @@ class UseCase9ErrorHandlingValidation {
             System.out.print("Enter room type (Single/Double/Suite): ");
             String roomType = scanner.nextLine();
 
-            // Perform validation
             validator.validate(guestName, roomType, inventory);
 
-            // If validation passes, process the booking
             bookingQueue.addRequest(new Reservation(guestName, roomType));
             System.out.println("Booking successfully validated and added to queue.");
 
         } catch (InvalidBookingException e) {
-            // Handle domain-specific validation errors
             System.out.println("Booking failed: " + e.getMessage());
 
-        } finally {
-            scanner.close();
+        } catch (Exception e) { // Catching general exceptions just in case of closed streams
+            System.out.println("An unexpected error occurred during input collection.");
         }
+    }
+}
+
+/**
+ * ============================================================================
+ * CLASS - CancellationService
+ * ============================================================================
+ *
+ * Use Case 10: Booking Cancellation & Inventory Rollback
+ *
+ * Description:
+ * This class is responsible for handling
+ * booking cancellations.
+ *
+ * It ensures that:
+ * - Cancelled room IDs are tracked
+ * - Inventory is restored correctly
+ * - Invalid cancellations are prevented
+ *
+ * A stack is used to model rollback behavior.
+ *
+ * @version 10.0
+ */
+class CancellationService {
+
+    /** Stack that stores recently released room IDs. */
+    private Stack<String> releasedRoomIds;
+
+    /** Maps reservation ID to room type. */
+    private Map<String, String> reservationRoomTypeMap;
+
+    /** Initializes cancellation tracking structures. */
+    public CancellationService() {
+        releasedRoomIds = new Stack<>();
+        reservationRoomTypeMap = new HashMap<>();
+    }
+
+    /**
+     * Registers a confirmed booking.
+     *
+     * This method simulates storing confirmation
+     * data that will later be required for cancellation.
+     *
+     * @param reservationId confirmed reservation ID
+     * @param roomType allocated room type
+     */
+    public void registerBooking(String reservationId, String roomType) {
+        reservationRoomTypeMap.put(reservationId, roomType);
+    }
+
+    /**
+     * Cancels a confirmed booking and
+     * restores inventory safely.
+     *
+     * @param reservationId reservation to cancel
+     * @param inventory centralized room inventory
+     */
+    public void cancelBooking(String reservationId, RoomInventory inventory) {
+        if (reservationRoomTypeMap.containsKey(reservationId)) {
+            String roomType = reservationRoomTypeMap.get(reservationId);
+            String inventoryKey = roomType + " Room";
+
+            // Add the cancelled room to our rollback stack
+            releasedRoomIds.push(reservationId);
+
+            // Restore the room inventory count
+            Map<String, Integer> currentAvailability = inventory.getRoomAvailability();
+            if (currentAvailability.containsKey(inventoryKey)) {
+                inventory.updateAvailability(inventoryKey, currentAvailability.get(inventoryKey) + 1);
+            }
+
+            // Remove the active reservation from mapping
+            reservationRoomTypeMap.remove(reservationId);
+
+            System.out.println("Booking cancelled successfully. Inventory restored for room type: " + roomType);
+        } else {
+            System.out.println("Cancellation failed: Invalid Reservation ID.");
+        }
+    }
+
+    /**
+     * Displays recently cancelled reservations.
+     *
+     * This method helps visualize rollback order.
+     */
+    public void showRollbackHistory() {
+        System.out.println("\nRollback History (Most Recent First):");
+
+        // We use a cloned stack or iterate downwards so we don't destroy the actual history
+        Stack<String> historyCopy = (Stack<String>) releasedRoomIds.clone();
+        while (!historyCopy.isEmpty()) {
+            System.out.println("Released Reservation ID: " + historyCopy.pop());
+        }
+    }
+}
+
+/**
+ * ============================================================================
+ * MAIN CLASS - UseCase10BookingCancellation
+ * ============================================================================
+ *
+ * Use Case 10: Booking Cancellation & Inventory Rollback
+ *
+ * Description:
+ * This class demonstrates how confirmed
+ * bookings can be cancelled safely.
+ *
+ * Inventory is restored and rollback
+ * history is maintained.
+ *
+ * @version 10.0
+ */
+class UseCase10BookingCancellation {
+
+    /**
+     * Application entry point for Use Case 10 execution.
+     */
+    public static void execute() {
+        System.out.println("\nBooking Cancellation");
+
+        RoomInventory inventory = new RoomInventory();
+        CancellationService cancellationService = new CancellationService();
+
+        // Let's pretend a booking was confirmed earlier
+        cancellationService.registerBooking("Single-1", "Single");
+
+        // Execute the cancellation
+        cancellationService.cancelBooking("Single-1", inventory);
+
+        // Display the rollback history from the Stack
+        cancellationService.showRollbackHistory();
+
+        // Print updated inventory to prove rollback was successful
+        // (Default single inventory is 5, reverting 1 makes it 6)
+        System.out.println("\nUpdated Single Room Availability: " + inventory.getRoomAvailability().get("Single Room"));
     }
 }
